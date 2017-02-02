@@ -15,10 +15,8 @@
 %%  daltonize("beetlejuice.jpeg");
 %%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb");
 %%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb", "ciecam02");
-
 function daltonize(image_path, xyz_transformation, lms_transformation)
-  % First of all we load the 'image' package to prevent lack of libraries
-  pkg load image;
+  pkg load image;     % Image package needed
 
   % Here we load the chosen transformations by the user
   %   If the user doesn't provide any or mistaken ones, we chose the better for them
@@ -55,18 +53,6 @@ function daltonize(image_path, xyz_transformation, lms_transformation)
     print('The given image file does not exist');
     exit(-1);
   endif
-        
-  % This is the original rgb2lms transform matrix, which calculation I personally don't know where it comes from
-  %   So, we will use the mathematic method, described in whe Android SDK, just here:
-  %     https://android.googlesource.com/platform/frameworks/native/+/14e8b01/services/surfaceflinger/Effects/Daltonizer.cpp
-  %   rgb2lms = [17.8824 43.5161 4.11935; 3.45565 27.1554 3.86714; 0.0299566 0.184309 1.46709]
-
-  % Now we calculate the RGB2LMS transform matrix. The process is the following:
-  %   XYZ = M * RGB
-  %   LMS = M' * XYZ
-  % So, finally, the transform matrix is:
-  %   LMS = M' * M * RGB
-  % So, in order to hurry the things up, we calculate the M'* M matrix just now and its inverse
   rgb2lms = xyz2lms * rgb2xyz;
   lms2rgb = inv(rgb2lms);
 
@@ -75,30 +61,16 @@ function daltonize(image_path, xyz_transformation, lms_transformation)
   BW = rgb2gray(image);
   RGB = double(image);
   sizeRGB = size(RGB);
-  
-  % After loading the image, we need to split the image in its channels
-  % It is due to the lack of perception of the blindcolor people to certain channels
-  % This is explained in the following link:
-  %   https://en.wikipedia.org/wiki/LMS_color_space
-  %   https://github.com/joergdietrich/daltonize/blob/master/doc/project_report.pdf
+
+  % Getting the LMS vectors configuration...
   lms_r = rgb2lms(1,:);
   lms_b = rgb2lms(3,:);
-  
-  % Here we take the white points of it. We just multiply it by ones
   lms_w = rgb2lms * ones(3, 1);
 
-  % After this is done, we need to get the cross section between the spaces we just got
-  %   Again, this is explained in the PDF file
+  % Applying the cross product to get the matrices...
   p0 = cross(lms_w, lms_b');
   p1 = cross(lms_w, lms_r');
 
-  % These are the transform matrices to perform the conversion to:
-  %   Protanopia -> L cone defective (Long wave-length cones)
-  %   Deuteranopia -> M cone defective (Medium wave-length cones)
-  %   Tritanopia -> S cone defective (Small wave-length cones)
-  %
-  % The calculation is provided in the Android SDK
-  %   https://android.googlesource.com/platform/frameworks/native/+/14e8b01/services/surfaceflinger/Effects/Daltonizer.cpp
   lms2lms_p = [  0.0000       0.0000,  0.0000;
                -p0(2)/p0(1),  1.0000,  0.0000;
                -p0(3)/p0(1),  0.0000,  1.0000]';
@@ -110,51 +82,42 @@ function daltonize(image_path, xyz_transformation, lms_transformation)
   lms2lms_t = [ 1.0000, 0.0000, -p1(1)/p1(3);
                 0.0000, 1.0000, -p1(2)/p1(3);
                 0.0000, 0.0000,      0.0000]';
+  
+  % Getting the colorblind images....
+  RGB_p = get_colorblind_image(RGB, rgb2lms, lms2lms_p);
+  RGB_d = get_colorblind_image(RGB, rgb2lms, lms2lms_d);
+  RGB_t = get_colorblind_image(RGB, rgb2lms, lms2lms_t);
 
-  % Now we just apply the requested transformations on every pixel
-  for i = 1:sizeRGB(1)
-      for j = 1:sizeRGB(2)
-          % First, we transform the RGB space to LMS space. This transformation varies depending on
-          %   the transformation previously chosen.
-          rgb = RGB(i,j,:);
-          rgb = rgb(:);
-          
-          LMS(i,j,:) = rgb2lms * rgb;
-          lms = LMS(i,j,:);
-          lms = lms(:);
-          
-          % Then, we transform the current pixel to its correspondence within the colorblind system
-          % So, in this step, we are transforming the pixels to colorblind LMS values
-          LMSp(i,j,:) = lms2lms_p * lms;
-          LMSd(i,j,:) = lms2lms_d * lms;
-          LMSt(i,j,:) = lms2lms_t * lms;
-          
-          % Finally, we transform back to RGB space in order to show it
-          lmsp = LMSp(i,j,:);
-          lmsp = lmsp(:);
-          
-          lmsd = LMSd(i,j,:);
-          lmsd = lmsd(:);
-          
-          lmst = LMSt(i,j,:);
-          lmst = lmst(:);
-          
-          RGBp(i,j,:) = lms2rgb * lmsp;
-          RGBd(i,j,:) = lms2rgb * lmsd;
-          RGBt(i,j,:) = lms2rgb * lmst;
-      end
-  end
+  % Formatting images to uint8...
+  RGB_p = uint8(RGB_p);
+  RGB_d = uint8(RGB_d);
+  RGB_t = uint8(RGB_t);
 
-  % Before we finish the process we normalize the pixels value
-  RGBp = uint8(RGBp);
-  RGBd = uint8(RGBd);
-  RGBt = uint8(RGBt);
+  % Writing images to files...
+  [dir, name, ext] = fileparts('example_images/beetlejuice.jpeg');
+  imwrite(RGB_p,[name '_p' ext],'jpeg');
+  imwrite(RGB_d,[name '_d' ext],'jpeg');
+  imwrite(RGB_t,[name '_t' ext],'jpeg');
+  imwrite(BW, [name '_bw' ext], 'jpeg');
+endfunction
 
-  % Finally we write the images into separate files
-  imwrite(RGBp,['_p.jpeg'],'jpeg');
-  imwrite(RGBd,['_d.jpeg'],'jpeg');
-  imwrite(RGBt,['_t.jpeg'],'jpeg');
-  imwrite(BW, ['_bw.jpeg'], 'jpeg');
+function RGB = get_colorblind_image(im, rgb2lms_matrix, colorblind_matrix)
+  % First separate the RGB channels
+  R = im(:,:,1);
+  G = im(:,:,2);
+  B = im(:,:,3);
+
+  % Convert from RGB to LMS. The order is switched, so we have to transpose
+  lms_image =  double([R(:), G(:), B(:)]) * rgb2lms_matrix';
+  
+  % Apply the colorblind matrix. Again, switched order, transposed matrix
+  lms_cb = lms_image * colorblind_matrix';
+  
+  % Revert to RGB by inverting the rgb2lms_matrix
+  RGB = lms_cb * inv(rgb2lms_matrix)' ;
+  
+  % Finally, reshape the image to its size
+  RGB = reshape(RGB, size(im));  
 endfunction
 
 %http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -253,7 +216,7 @@ function rgb2xyz = get_rgb2xyz_matrix(type)
                   0.2225045  0.7168786  0.0606169;
                   0.0139322  0.0971045  0.7141733];
     case 'wide_gamut_rgb'
-      rgb2xyz = [	0.7161046  0.1009296  0.1471858;
+      rgb2xyz = [ 0.7161046  0.1009296  0.1471858;
                   0.2581874  0.7249378  0.0168748;
                   0.0000000  0.0517813  0.7734287];
     otherwise
