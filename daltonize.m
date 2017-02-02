@@ -18,6 +18,7 @@
 function daltonize(image_path, xyz_transformation, lms_transformation)
   pkg load image;     % Image package needed
 
+  tic
   % Here we load the chosen transformations by the user
   %   If the user doesn't provide any or mistaken ones, we chose the better for them
   if nargin == 1        
@@ -92,9 +93,10 @@ function daltonize(image_path, xyz_transformation, lms_transformation)
   RGB_p = uint8(RGB_p);
   RGB_d = uint8(RGB_d);
   RGB_t = uint8(RGB_t);
+  toc
 
   % Writing images to files...
-  [dir, name, ext] = fileparts('example_images/beetlejuice.jpeg');
+  [dir, name, ext] = fileparts(image_path);
   imwrite(RGB_p,[name '_p' ext],'jpeg');
   imwrite(RGB_d,[name '_d' ext],'jpeg');
   imwrite(RGB_t,[name '_t' ext],'jpeg');
