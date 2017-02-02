@@ -1,20 +1,20 @@
-## Author: David de los Santos Boix <davsanboi@alum.us.es>
-## Keywords: daltonismo protanopia deuteranopia tritanopia
-## Maintainer: David de los Santos Boix <davsanboi@alum.us.es>
-## Created: 01/02/2017
-## Version: 1.0
+%% Author: David de los Santos Boix <davsanboi@alum.us.es>
+%% Keywords: daltonismo protanopia deuteranopia tritanopia
+%% Maintainer: David de los Santos Boix <davsanboi@alum.us.es>
+%% Created: 01/02/2017
+%% Version: 1.0
 
-## usage: daltonize(IMAGE, [XYZ_TRANSFORMATION, LMS_TRANSFORMATION])
-##
-## Convert an ordinary image to a given colorblind type.
-## The user can customize the transformation matrices in order to 
-## play with them and view the different results applying different
-## transformation matrices.
-##
-## Example:
-##  daltonize("beetlejuice.jpeg");
-##  daltonize("beetlejuice.jpeg", "wide_gamut_rgb");
-##  daltonize("beetlejuice.jpeg", "wide_gamut_rgb", "ciecam02");
+%% usage: daltonize(IMAGE, [XYZ_TRANSFORMATION, LMS_TRANSFORMATION])
+%%
+%% Convert an ordinary image to a given colorblind type.
+%% The user can customize the transformation matrices in order to 
+%% play with them and view the different results applying different
+%% transformation matrices.
+%%
+%% Example:
+%%  daltonize("beetlejuice.jpeg");
+%%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb");
+%%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb", "ciecam02");
 
 function daltonize(image_path, xyz_transformation, lms_transformation)
   % First of all we load the 'image' package to prevent lack of libraries
