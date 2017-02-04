@@ -61,10 +61,13 @@ Protanopia | Deuteranopia | Tritanopia
 :-------------------------:|:-------------------------:|:-------------------------:
 ![Protanopia example](example_images/_p.jpeg) | ![Deuteranopia example](example_images/_d.jpeg) | ![Tritanopia example](example_images/_t.jpeg)
 
-
+## Code optimization
+After few tweaks, the performance of the script is really impressive, for example:
+* __beetlejuice.jpeg (200\*200 px)__ Elapsed time is 0.026247 seconds.
+* __landscape.jpg (2880\*1800 px)__ Elapsed time is 3.02334 seconds.
 
 ## Acknowledgments
-* [Inteligent modification for the daltonization process of digitilized paintings](http://biecoll.ub.uni-bielefeld.de/volltexte/2007/52/pdf/ICVS2007-6.pdf)
+* [Intelligent modification for the daltonization process of digitilized paintings](http://biecoll.ub.uni-bielefeld.de/volltexte/2007/52/pdf/ICVS2007-6.pdf)
 * [Python implementation](https://github.com/joergdietrich/daltonize)
 * [Android SDK daltonizer C++ implementation](https://android.googlesource.com/platform/frameworks/native/+/14e8b01/services/surfaceflinger/Effects/Daltonizer.cpp)
 * [List of RGB to XYZ matrices](http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html)
