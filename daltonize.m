@@ -6,62 +6,58 @@
 
 %% usage: daltonize(IMAGE, [XYZ_TRANSFORMATION, LMS_TRANSFORMATION])
 %%
-%% Convert an ordinary image to a given colorblind type.
-%% The user can customize the transformation matrices in order to 
-%% play with them and view the different results applying different
-%% transformation matrices.
+%% Convert an ordinary image to protanopia, deuteranopia and tritanopia colorblind version.
+%% 
+%% XYZ_TRANSFORMATION list:
+%%    adobe_rgb_d50     cie_rgb_d50       pal_secam_rgb_d50
+%%    adobe_rgb_d65     cie_rgb_e         pal_secam_rgb_d65
+%%    apple_rgb_d50     color_match_rgb   pro_photo_rgb
+%%    apple_rgb_d65     don_rgb_4         smptec_rgb_d50
+%%    best_rgb          eci_rgb           smptec_rgb_d65
+%%    beta_rgb          ekta_space_ps5    srgb_d50
+%%    bruce_rgb_d50     ntsc_rgb_c        srgb_d65
+%%    bruce_rgb_d65     ntsc_rgb_d50      wide_gamut_rgb
+%% 
+%% LMS_TRANSFORMATION list:
+%%    equal_energy
+%%    equal_energy_d65
+%%    ciecam97
+%%    ciecam02
 %%
 %% Example:
 %%  daltonize("beetlejuice.jpeg");
 %%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb");
 %%  daltonize("beetlejuice.jpeg", "wide_gamut_rgb", "ciecam02");
-function daltonize(image_path, xyz_transformation, lms_transformation)
+function daltonize(image_path, xyz_transformation=0, lms_transformation=0)
   pkg load image;     % Image package needed
-
-  tic
-  % Here we load the chosen transformations by the user
-  %   If the user doesn't provide any or mistaken ones, we chose the better for them
-  if nargin == 1        
-    rgb2xyz = get_rgb2xyz_matrix('wide_gamut_rgb');
-    xyz2lms = get_xyz2lms_matrix('ciecam02');
-    
-  elseif nargin == 2
-    xyz2lms = get_xyz2lms_matrix('ciecam02');
-    rgb2xyz = get_rgb2xyz_matrix(xyz_transformation);
-    
-    if rgb2xyz == 0
-      rgb2xyz = get_rgb2xyz_matrix('wide_gamut_rgb');
-    endif
-    
-  elseif nargin == 3
-    rgb2xyz = get_rgb2xyz_matrix(xyz_transformation);
-    if rgb2xyz == 0
-      rgb2xyz = get_rgb2xyz_matrix('wide_gamut_rgb');
-    endif
-    
-    xyz2lms = get_xyz2lms_matrix(lms_transformation);
-    if xyz2lms == 0
-      xyz2lms = get_xyz2lms_matrix('ciecam02');
-    endif
-  else
-    print('Incorrect number of input parameters');
-    exit(-1);
-  endif
   
-  
-  % Now we check if the given file exists
+  % Checking if the image exists...
   if exist(image_path, 'file') == 0
-    print('The given image file does not exist');
-    exit(-1);
+    printf('The given image file does not exist\r\n');
+    return;
   endif
-  rgb2lms = xyz2lms * rgb2xyz;
-  lms2rgb = inv(rgb2lms);
-
-  % Finally, we load the image and get its RGB and BW codification
+  
+  % Checking if the image is colorized...
   image = imread(image_path);
+  sizeRGB = size(image);
+  
+  % If the image is in Black and White, then we cannot perform any colorblind operation on it
+  if size(sizeRGB) != 3 || sizeRGB(3) != 3
+    printf('The image should be colorized RGB\r\n');
+    return;
+  endif
+  
+  % Getting its values for Black/White and colorblind transformation
   BW = rgb2gray(image);
   RGB = double(image);
-  sizeRGB = size(RGB);
+  
+  % Choosing the transformation matrices...
+  rgb2xyz = get_rgb2xyz_matrix(xyz_transformation);
+  xyz2lms = get_xyz2lms_matrix(lms_transformation);
+
+  % Now we calculate the necessary RGB to LMS and LMS to RGB matrices...
+  rgb2lms = xyz2lms * rgb2xyz;
+  lms2rgb = inv(rgb2lms);
 
   % Getting the LMS vectors configuration...
   lms_r = rgb2lms(1,:);
@@ -83,18 +79,19 @@ function daltonize(image_path, xyz_transformation, lms_transformation)
   lms2lms_t = [ 1.0000, 0.0000, -p1(1)/p1(3);
                 0.0000, 1.0000, -p1(2)/p1(3);
                 0.0000, 0.0000,      0.0000]';
-  
+
   % Getting the colorblind images....
+  tic
   RGB_p = get_colorblind_image(RGB, rgb2lms, lms2lms_p);
   RGB_d = get_colorblind_image(RGB, rgb2lms, lms2lms_d);
   RGB_t = get_colorblind_image(RGB, rgb2lms, lms2lms_t);
-
+  toc
+  
   % Formatting images to uint8...
   RGB_p = uint8(RGB_p);
   RGB_d = uint8(RGB_d);
   RGB_t = uint8(RGB_t);
-  toc
-
+ 
   % Writing images to files...
   [dir, name, ext] = fileparts(image_path);
   imwrite(RGB_p,[name '_p' ext],'jpeg');
@@ -222,8 +219,14 @@ function rgb2xyz = get_rgb2xyz_matrix(type)
                   0.2581874  0.7249378  0.0168748;
                   0.0000000  0.0517813  0.7734287];
     otherwise
-      rgb2xyz = 0
+      % We choose wide_gamut_rgb as the default one
+      type = 'wide_gamut_rgb';
+      rgb2xyz = [ 0.7161046  0.1009296  0.1471858;
+                  0.2581874  0.7249378  0.0168748;
+                  0.0000000  0.0517813  0.7734287];
   endswitch
+  
+  printf('RGB to XYZ: %s\r\n', type);
 endfunction
 
 %https://en.wikipedia.org/wiki/LMS_color_space#XYZ_to_LMS
@@ -246,6 +249,11 @@ function xyz2lms = get_xyz2lms_matrix(type)
                  -0.7036 1.6975  0.0061;
                   0.0030 0.0136  0.9834];
     otherwise
-      xyz2lms = 0
+      % We choose CIECAM02 as the default one
+      type = 'ciecam02';
+      xyz2lms = [ 0.7328 0.4296 -0.1624;
+                 -0.7036 1.6975  0.0061;
+                  0.0030 0.0136  0.9834];
   endswitch
+  printf('XYZ to LMS: %s\r\n', type);
 endfunction
